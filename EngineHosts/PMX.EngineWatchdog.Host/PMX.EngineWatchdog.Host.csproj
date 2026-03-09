@@ -10,6 +10,7 @@
     <Product>Priority Manager X</Product>
     <AssemblyTitle>PMX Engine Watchdog</AssemblyTitle>
     <Description>PMX Engine Watchdog background process</Description>
+    <ApplicationIcon>..\..\assets\pmx-sharp.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

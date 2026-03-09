@@ -74,13 +74,14 @@ Source: "offline-runtime\{#DotNetRuntimeOfflineFile}"; Flags: dontcopy
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
-[Registry]
-Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "PriorityManagerX"; ValueData: """{app}\{#MyAppExeName}"""; Tasks: autostart; Flags: uninsdeletevalue
-Root: HKLM; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"; ValueType: string; ValueName: "{app}\{#MyAppExeName}"; ValueData: "RUNASADMIN"; Tasks: runasadmin; Flags: uninsdeletevalue
-
 [CustomMessages]
 en.TaskAutoStart=Start Priority Manager X with Windows
 en.TaskRunAsAdmin=Always run Priority Manager X as administrator
+en.CoreStartupPageTitle=Core engine startup mode
+en.CoreStartupPageDescription=Choose how to start the core engine after system boot
+en.CoreStartupPageSub=You can change this later in application settings.
+en.CoreStartupOptionServiceLike=Start core engine like a service at system boot
+en.CoreStartupOptionWithGui=Start core engine together with GUI
 en.CtxSaveIdle=Save priority: Idle
 en.CtxSaveBelowNormal=Save priority: Below Normal
 en.CtxSaveNormal=Save priority: Normal
@@ -95,6 +96,11 @@ en.RuntimeNotInstalled=Required runtime is still not detected after installation
 
 ru.TaskAutoStart=Запускать Priority Manager X вместе с Windows
 ru.TaskRunAsAdmin=Всегда запускать Priority Manager X от имени администратора
+ru.CoreStartupPageTitle=Режим запуска основного движка
+ru.CoreStartupPageDescription=Выберите, как запускать основной движок после загрузки системы
+ru.CoreStartupPageSub=Позже это можно изменить в настройках приложения.
+ru.CoreStartupOptionServiceLike=Запускать основной движок как службу при загрузке системы
+ru.CoreStartupOptionWithGui=Запускать основной движок вместе с GUI
 ru.CtxSaveIdle=Сохранить приоритет: Низкий
 ru.CtxSaveBelowNormal=Сохранить приоритет: Ниже обычного
 ru.CtxSaveNormal=Сохранить приоритет: Обычный
@@ -109,6 +115,11 @@ ru.RuntimeNotInstalled=После установки runtime не обнаруж
 
 uk.TaskAutoStart=Запускати Priority Manager X разом із Windows
 uk.TaskRunAsAdmin=Завжди запускати Priority Manager X від імені адміністратора
+uk.CoreStartupPageTitle=Режим запуску основного рушія
+uk.CoreStartupPageDescription=Виберіть, як запускати основний рушій після завантаження системи
+uk.CoreStartupPageSub=Пізніше це можна змінити в налаштуваннях застосунку.
+uk.CoreStartupOptionServiceLike=Запускати основний рушій як службу при завантаженні системи
+uk.CoreStartupOptionWithGui=Запускати основний рушій разом із GUI
 uk.CtxSaveIdle=Зберегти пріоритет: Низький
 uk.CtxSaveBelowNormal=Зберегти пріоритет: Нижче звичайного
 uk.CtxSaveNormal=Зберегти пріоритет: Звичайний
@@ -160,6 +171,17 @@ Type: filesandordirs; Name: "{app}"
 const
 	SHCNE_ASSOCCHANGED = $08000000;
 	SHCNF_IDLIST = $0000;
+	GuiStartupTaskName = 'PriorityManagerX GUI';
+	CoreStartupTaskName = 'PriorityManagerX Core Engine';
+	LegacyMachineRunPath = 'HKLM\Software\Microsoft\Windows\CurrentVersion\Run';
+	CurrentUserRunPath = 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run';
+	CurrentUserLayersPath = 'HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers';
+	LegacyMachineRunValueName = 'PriorityManagerX';
+	GuiRunValueName = 'PriorityManagerX.GUI';
+	CoreRunValueName = 'PriorityManagerX.CoreWatchdog';
+
+var
+	CoreStartupPage: TInputOptionWizardPage;
 
 procedure SHChangeNotify(wEventId: Cardinal; uFlags: Cardinal; dwItem1: Integer; dwItem2: Integer);
 	external 'SHChangeNotify@shell32.dll stdcall';
@@ -253,6 +275,119 @@ begin
 	Result := (exitCode = 0) or (exitCode = 3010);
 end;
 
+function IsCoreStartupServiceLikeSelected: Boolean;
+begin
+	Result := (CoreStartupPage <> nil) and CoreStartupPage.Values[0];
+end;
+
+function IsGuiStartupSelected: Boolean;
+begin
+	Result := WizardIsTaskSelected('autostart');
+end;
+
+function IsRunAsAdminSelected: Boolean;
+begin
+	Result := WizardIsTaskSelected('runasadmin');
+end;
+
+procedure RunCmdAndIgnore(const Parameters: string);
+var
+	exitCode: Integer;
+begin
+	Exec(ExpandConstant('{cmd}'), '/C ' + Parameters, '', SW_HIDE, ewWaitUntilTerminated, exitCode);
+end;
+
+procedure ApplyInstallStartupProfile;
+var
+	appExe: string;
+	watchdogExe: string;
+	settingsFile: string;
+	coreStartupModeValue: string;
+	guiStartupModeValue: string;
+	autoStartValue: string;
+	runAsAdminValue: string;
+	psScript: string;
+	psArgs: string;
+	exitCode: Integer;
+begin
+	appExe := ExpandConstant('{app}\{#MyAppExeName}');
+	watchdogExe := ExpandConstant('{app}\PMX.EngineWatchdog.exe');
+	settingsFile := ExpandConstant('{app}\settings.json');
+
+	if IsCoreStartupServiceLikeSelected then
+		coreStartupModeValue := '4'
+	else
+		coreStartupModeValue := '1';
+
+	if IsGuiStartupSelected then
+	begin
+		guiStartupModeValue := '2';
+		autoStartValue := 'True';
+	end
+	else
+	begin
+		guiStartupModeValue := '0';
+		autoStartValue := 'False';
+	end;
+
+	if IsRunAsAdminSelected then
+		runAsAdminValue := 'True'
+	else
+		runAsAdminValue := 'False';
+
+	// Remove legacy entries and apply a single startup model compatible with app runtime settings.
+	RunCmdAndIgnore('reg delete "' + LegacyMachineRunPath + '" /v "' + LegacyMachineRunValueName + '" /f');
+	RunCmdAndIgnore('reg delete "' + CurrentUserRunPath + '" /v "' + GuiRunValueName + '" /f');
+	RunCmdAndIgnore('reg delete "' + CurrentUserRunPath + '" /v "' + CoreRunValueName + '" /f');
+	RunCmdAndIgnore('schtasks /Delete /F /TN "' + GuiStartupTaskName + '"');
+	RunCmdAndIgnore('schtasks /Delete /F /TN "' + CoreStartupTaskName + '"');
+
+	if IsGuiStartupSelected and FileExists(appExe) then
+		RunCmdAndIgnore('schtasks /Create /F /SC ONLOGON /TN "' + GuiStartupTaskName + '" /TR "\"' + appExe + '\"" /RL LIMITED');
+
+	if IsCoreStartupServiceLikeSelected then
+	begin
+		if FileExists(watchdogExe) then
+			RunCmdAndIgnore('schtasks /Create /F /SC ONSTART /TN "' + CoreStartupTaskName + '" /TR "\"' + watchdogExe + '\"" /RU SYSTEM /RL HIGHEST');
+	end;
+
+	if IsRunAsAdminSelected then
+		RunCmdAndIgnore('reg add "' + CurrentUserLayersPath + '" /v "' + appExe + '" /t REG_SZ /d "RUNASADMIN" /f')
+	else
+		RunCmdAndIgnore('reg delete "' + CurrentUserLayersPath + '" /v "' + appExe + '" /f');
+
+	psScript :=
+		'$path = ''' + settingsFile + '''; ' +
+		'$settings = @{}; ' +
+		'if (Test-Path -LiteralPath $path) { try { $settings = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json } catch { $settings = @{} } }; ' +
+		'if ($settings -eq $null) { $settings = @{} }; ' +
+		'function Set-Setting([string]$name, $value) { if ($settings.PSObject.Properties.Name -contains $name) { $settings.$name = $value } else { $settings | Add-Member -NotePropertyName $name -NotePropertyValue $value } }; ' +
+		'Set-Setting ''CoreEngineStartupMode'' ' + coreStartupModeValue + '; ' +
+		'Set-Setting ''GuiStartupMode'' ' + guiStartupModeValue + '; ' +
+		'Set-Setting ''AutoStartWithWindows'' $' + autoStartValue + '; ' +
+		'Set-Setting ''RunAsAdministrator'' $' + runAsAdminValue + '; ' +
+		'Set-Setting ''RestartCoreEngineIfStopped'' $true; ' +
+		'$settings | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $path -Encoding UTF8';
+
+	psArgs := '-NoProfile -ExecutionPolicy Bypass -Command "' + psScript + '"';
+	Exec(ExpandConstant('{cmd}'), '/C powershell.exe ' + psArgs, '', SW_HIDE, ewWaitUntilTerminated, exitCode);
+end;
+
+procedure InitializeWizard;
+begin
+	CoreStartupPage := CreateInputOptionPage(
+		wpSelectTasks,
+		ExpandConstant('{cm:CoreStartupPageTitle}'),
+		ExpandConstant('{cm:CoreStartupPageDescription}'),
+		ExpandConstant('{cm:CoreStartupPageSub}'),
+		True,
+		False);
+
+	CoreStartupPage.Add(ExpandConstant('{cm:CoreStartupOptionServiceLike}'));
+	CoreStartupPage.Add(ExpandConstant('{cm:CoreStartupOptionWithGui}'));
+	CoreStartupPage.Values[1] := True;
+end;
+
 function InitializeSetup(): Boolean;
 var
 	retries: Integer;
@@ -300,7 +435,10 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
 	if CurStep = ssPostInstall then
+	begin
+		ApplyInstallStartupProfile;
 		RefreshExplorerShell;
+	end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

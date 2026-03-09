@@ -43,6 +43,7 @@ namespace PriorityManagerX
 
         readonly Button ok = new();
         readonly Button cancel = new();
+        readonly ToolTip startupTooltips = new();
 
         public AppSettings Settings { get; }
 
@@ -105,6 +106,11 @@ namespace PriorityManagerX
 
             AcceptButton = ok;
             CancelButton = cancel;
+
+            startupTooltips.AutoPopDelay = 12000;
+            startupTooltips.InitialDelay = 350;
+            startupTooltips.ReshowDelay = 120;
+            startupTooltips.ShowAlways = true;
         }
 
         static TabPage NewTab(string title, Control body)
@@ -221,6 +227,9 @@ namespace PriorityManagerX
             guiPanel.Controls.Add(guiStartupAllUsers);
             guiPanel.Controls.Add(guiStartupCurrentUser);
             guiPanel.Controls.Add(guiStartupDisabled);
+            startupTooltips.SetToolTip(guiStartupAllUsers, L10n.SettingsTipGuiStartupAllUsers);
+            startupTooltips.SetToolTip(guiStartupCurrentUser, L10n.SettingsTipGuiStartupCurrentUser);
+            startupTooltips.SetToolTip(guiStartupDisabled, L10n.SettingsTipGuiStartupDisabled);
             startupGuiGroup.Controls.Add(guiPanel);
 
             switch (settings.GuiStartupMode)
@@ -259,6 +268,12 @@ namespace PriorityManagerX
             enginePanel.Controls.Add(engineStartupWithGui);
             enginePanel.Controls.Add(engineStartupDisabled);
             enginePanel.Controls.Add(engineAutoRecover);
+            startupTooltips.SetToolTip(engineStartupAllUsers, L10n.SettingsTipEngineStartupAllUsers);
+            startupTooltips.SetToolTip(engineStartupCurrentUser, L10n.SettingsTipEngineStartupCurrentUser);
+            startupTooltips.SetToolTip(engineStartupServiceLike, L10n.SettingsTipEngineStartupServiceLike);
+            startupTooltips.SetToolTip(engineStartupWithGui, L10n.SettingsTipEngineStartupWithGui);
+            startupTooltips.SetToolTip(engineStartupDisabled, L10n.SettingsTipEngineStartupDisabled);
+            startupTooltips.SetToolTip(engineAutoRecover, L10n.SettingsTipEngineAutoRecover);
             startupEngineGroup.Controls.Add(enginePanel);
 
             switch (settings.CoreEngineStartupMode)
@@ -275,6 +290,7 @@ namespace PriorityManagerX
             runAsAdmin.AutoSize = true;
             runAsAdmin.Dock = DockStyle.Top;
             runAsAdmin.Checked = settings.RunAsAdministrator;
+            startupTooltips.SetToolTip(runAsAdmin, L10n.SettingsTipRunAsAdmin);
 
             host.Controls.Add(runAsAdmin);
             host.Controls.Add(startupEngineGroup);

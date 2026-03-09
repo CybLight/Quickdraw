@@ -10,6 +10,7 @@
     <Product>Priority Manager X</Product>
     <AssemblyTitle>PMX Core Engine</AssemblyTitle>
     <Description>PMX Core Engine background process</Description>
+    <ApplicationIcon>..\..\assets\pmx-sharp.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
