@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10" xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4" xmlns:desktop5="http://schemas.microsoft.com/appx/manifest/desktop/windows10/5" xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10/4" IgnorableNamespaces="uap rescap desktop desktop4 desktop5 com">
+  <!-- TODO: РїСЂРё РїРµСЂРІРѕРј С‚РµСЃС‚Рµ РѕР±РЅРѕРІРё Publisher РЅР° СЃРІРѕР№ СЃРµСЂС‚РёС„РёРєР°С‚ -->
+  <Identity Name="PriorityManagerX.SparsePackage" Publisher="CN=PriorityManagerX Dev" Version="1.0.0.15" />
+  <Properties>
+    <DisplayName>Priority Manager X (Context Menu)</DisplayName>
+    <PublisherDisplayName>Priority Manager X</PublisherDisplayName>
+    <Logo>Assets\PmX.png</Logo>
+  </Properties>
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.22000.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <!-- Р Р°Р·СЂРµС€Р°РµРј Р·Р°РїСѓСЃРє РїРѕР»РЅРѕС†РµРЅРЅРѕРіРѕ Win32-РїСЂРёР»РѕР¶РµРЅРёСЏ РёР· РїР°РєРµС‚Р° -->
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+  <Applications>
+    <!-- SparseвЂ‘РїР°РєРµС‚: СЃР°Рј EXE Р¶РёРІС‘С‚ СЃРЅР°СЂСѓР¶Рё, РЅРѕ РїР°РєРµС‚ Р·РЅР°РµС‚, С‡С‚Рѕ СЌС‚Рѕ FullTrustвЂ‘РїСЂРёР»РѕР¶РµРЅРёРµ -->
+    <Application Id="PriorityManagerX" Executable="PriorityManagerX\PriorityManagerX.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="Priority Manager X" Description="Priority Manager X process priority manager" Square150x150Logo="Assets\PmX.png" Square44x44Logo="Assets\PmX.png" BackgroundColor="transparent" />
+      <Extensions>
+        <!-- COMвЂ‘СЃРµСЂРІРµСЂ РґР»СЏ IExplorerCommand -->
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:SurrogateServer>
+              <!-- Р РµРіРёСЃС‚СЂР°С†РёСЏ CLSID РєРѕРЅС‚РµРєСЃС‚РЅРѕРіРѕ РјРµРЅСЋ С‡РµСЂРµР· COM surrogate -->
+              <com:Class Id="B1B7D9D0-6A69-4A5D-9A89-9A8F59A17C22" Path="PriorityManagerX.ShellExtension.comhost.dll" ThreadingModel="Both" />
+            </com:SurrogateServer>
+          </com:ComServer>
+        </com:Extension>
+        <!-- РљРѕРЅС‚РµРєСЃС‚РЅРѕРµ РјРµРЅСЋ РїСЂРѕРІРѕРґРЅРёРєР° Windows 11 -->
+        <desktop4:Extension Category="windows.fileExplorerContextMenus">
+          <desktop4:FileExplorerContextMenus>
+            <!-- Р¤РёР»СЊС‚СЂ РїРѕ С‚РёРїСѓ: С‚РѕР»СЊРєРѕ .exe -->
+            <desktop5:ItemType Type=".exe">
+              <desktop5:Verb Id="PriorityManagerX" Clsid="B1B7D9D0-6A69-4A5D-9A89-9A8F59A17C22" />
+            </desktop5:ItemType>
+          </desktop4:FileExplorerContextMenus>
+        </desktop4:Extension>
+        <!-- Р Р°Р·СЂРµС€Р°РµРј Р·Р°РїСѓСЃРє РїРѕР»РЅРѕС†РµРЅРЅРѕРіРѕ РїСЂРѕС†РµСЃСЃР° -->
+        <desktop:Extension Category="windows.fullTrustProcess">
+          <desktop:FullTrustProcess>
+            <desktop:ParameterGroup GroupId="default" Parameters="" />
+          </desktop:FullTrustProcess>
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+</Package>

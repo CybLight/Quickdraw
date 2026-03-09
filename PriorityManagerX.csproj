@@ -1,0 +1,43 @@
+
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <Compile Remove="ShellExtension\**\*.cs" />
+    <EmbeddedResource Remove="ShellExtension\**\*" />
+    <None Remove="ShellExtension\**\*" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <Company>CybLight</Company>
+    <Product>Priority Manager X</Product>
+    <AssemblyTitle>Priority Manager X</AssemblyTitle>
+    <Description>PMX process priority manager for Windows</Description>
+    <ApplicationIcon>assets\pmx-sharp.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="assets\PmX.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <TargetPath>PmX.png</TargetPath>
+    </None>
+  </ItemGroup>
+
+  <Target Name="BuildShellExtension" AfterTargets="Build">
+    <MSBuild Projects="ShellExtension\PriorityManagerX.ShellExtension.csproj" Targets="Restore;Build" Properties="Configuration=$(Configuration)" />
+
+    <ItemGroup>
+      <ShellExtensionArtifacts Include="ShellExtension\bin\$(Configuration)\net8.0-windows\PriorityManagerX.ShellExtension.dll" />
+      <ShellExtensionArtifacts Include="ShellExtension\bin\$(Configuration)\net8.0-windows\PriorityManagerX.ShellExtension.comhost.dll" />
+      <ShellExtensionArtifacts Include="ShellExtension\bin\$(Configuration)\net8.0-windows\PriorityManagerX.ShellExtension.deps.json" />
+      <ShellExtensionArtifacts Include="ShellExtension\bin\$(Configuration)\net8.0-windows\PriorityManagerX.ShellExtension.runtimeconfig.json" />
+      <ShellExtensionArtifacts Include="ShellExtension\obj\$(Configuration)\net8.0-windows\PriorityManagerX.ShellExtension.clsidmap" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(ShellExtensionArtifacts)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('%(ShellExtensionArtifacts.Identity)')" />
+  </Target>
+</Project>

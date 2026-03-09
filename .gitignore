@@ -1,0 +1,68 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Rr]elease/
+[Dd]ebug/
+[Aa]rtifacts/
+
+# .NET user files
+*.user
+*.rsuser
+*.suo
+*.userprefs
+*.sln.docstates
+
+# IDE folders
+.vs/
+.idea/
+
+# VS Code local settings
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# Logs and diagnostics
+*.log
+*.tmp
+*.temp
+*.cache
+*.pid
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# Test/results/coverage
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# App runtime data (local)
+settings.json
+rules.json
+
+# Installer artifacts
+installer/publish/
+installer/output/
+installer/offline-runtime/
+
+# Sparse/MSIX artifacts
+PriorityManagerX.Sparse.msix
+*.msix
+SparsePackage/layout/
+SparsePackage/_verify_unpack/
+
+# Signing/cert material
+*.pfx
+*.p12
+*.cer

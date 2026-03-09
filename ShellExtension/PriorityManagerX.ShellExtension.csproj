@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <EnableComHosting>true</EnableComHosting>
+    <ComVisible>true</ComVisible>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Company>CybLight</Company>
+    <Product>Priority Manager X</Product>
+    <AssemblyTitle>PMX Shell Extension</AssemblyTitle>
+    <Description>PMX Explorer shell integration</Description>
+  </PropertyGroup>
+</Project>
