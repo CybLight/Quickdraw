@@ -8,9 +8,9 @@ param(
     [string]$MakeAppxPath = "",
     # Путь к pfx‑сертификату и его пароль (для подписи пакета).
     [string]$PfxPath = "",
-    [string]$PfxPassword = "",
+    [SecureString]$PfxPassword,
     # Авто‑инкремент версии в Package.appxmanifest перед сборкой.
-    [switch]$AutoIncrementVersion = $true
+    [bool]$AutoIncrementVersion = $true
 )
 
 $ErrorActionPreference = "Stop"
@@ -88,7 +88,7 @@ function Resolve-SignTool {
     throw "signtool.exe не найден. Установи Windows SDK или подпиши пакет вручную."
 }
 
-function Increment-ManifestVersion {
+function Update-ManifestVersion {
     param([string]$ManifestPath)
 
     [xml]$xml = Get-Content -Path $ManifestPath
@@ -118,6 +118,22 @@ function Increment-ManifestVersion {
     return $next
 }
 
+function Convert-SecureStringToPlainText {
+    param([SecureString]$Value)
+
+    if (-not $Value) {
+        return ""
+    }
+
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Value)
+    try {
+        return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+    }
+    finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    }
+}
+
 $root = Split-Path -Parent $PSScriptRoot
 $sparseDir = Join-Path $PSScriptRoot "layout"
 
@@ -130,7 +146,7 @@ New-Item -ItemType Directory -Path $sparseDir | Out-Null
 # Копируем manifest
 $manifestPath = Join-Path $PSScriptRoot "Package.appxmanifest"
 if ($AutoIncrementVersion) {
-    $nextVersion = Increment-ManifestVersion -ManifestPath $manifestPath
+    $nextVersion = Update-ManifestVersion -ManifestPath $manifestPath
     Write-Host ("Manifest version incremented to: " + $nextVersion)
 }
 Copy-Item $manifestPath (Join-Path $sparseDir "AppxManifest.xml")
@@ -181,14 +197,15 @@ if ($makeExitCode -ne 0) {
 
 if ($PfxPath -and (Test-Path $PfxPath)) {
     try {
-        $securePwd = ConvertTo-SecureString $PfxPassword -AsPlainText -Force
-        $null = Get-PfxData -FilePath $PfxPath -Password $securePwd
+        $null = Get-PfxData -FilePath $PfxPath -Password $PfxPassword
     } catch {
         throw "PFX validation failed. Check PFX path and password."
     }
 
     $signtool = Resolve-SignTool
-    & $signtool sign /f $PfxPath /p $PfxPassword /fd SHA256 /a (Join-Path $root $OutputMsix)
+    $plainPfxPassword = Convert-SecureStringToPlainText -Value $PfxPassword
+    & $signtool sign /f $PfxPath /p $plainPfxPassword /fd SHA256 /a (Join-Path $root $OutputMsix)
+    $plainPfxPassword = $null
     $signExitCode = $LASTEXITCODE
     if ($signExitCode -ne 0) {
         throw "SignTool failed with exit code $signExitCode. Check PFX password and Publisher match."

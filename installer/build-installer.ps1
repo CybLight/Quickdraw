@@ -3,7 +3,7 @@ param(
     [string[]]$Runtimes = @("win-x64", "win-x86"),
     [bool]$SelfContained = $false,
     [string]$SparsePfxPath = "",
-    [string]$SparsePfxPassword = "",
+    [SecureString]$SparsePfxPassword,
     [bool]$BuildSparsePackage = $true
 )
 
@@ -21,6 +21,22 @@ $sparseBuildScript = Join-Path $repoRoot "SparsePackage\build-sparse-package.ps1
 $sparseInstallScript = Join-Path $repoRoot "SparsePackage\install-sparse-package.ps1"
 $sparseUninstallScript = Join-Path $repoRoot "SparsePackage\uninstall-sparse-package.ps1"
 $sparseMsixPath = Join-Path $repoRoot "PriorityManagerX.Sparse.msix"
+
+function Convert-SecureStringToPlainText {
+    param([SecureString]$Value)
+
+    if (-not $Value) {
+        return ""
+    }
+
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Value)
+    try {
+        return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+    }
+    finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    }
+}
 
 Write-Host "[1/6] Prepare installer build..."
 dotnet build (Join-Path $repoRoot "ShellExtension\PriorityManagerX.ShellExtension.csproj") -c $Configuration
@@ -137,10 +153,14 @@ foreach ($runtime in $Runtimes) {
         )
 
         if ($SparsePfxPath) {
-            $sparseArgs += @("-PfxPath", $SparsePfxPath, "-PfxPassword", $SparsePfxPassword)
+            $plainSparsePfxPassword = Convert-SecureStringToPlainText -Value $SparsePfxPassword
+            $sparseArgs += @("-PfxPath", $SparsePfxPath, "-PfxPassword", $plainSparsePfxPassword)
         }
 
         & powershell @sparseArgs
+        if ($plainSparsePfxPassword) {
+            $plainSparsePfxPassword = $null
+        }
         if ($LASTEXITCODE -ne 0) {
             throw "Sparse package build failed with exit code $LASTEXITCODE for runtime $runtime"
         }
