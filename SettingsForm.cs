@@ -38,6 +38,8 @@ namespace PriorityManagerX
         readonly RadioButton dateEurope = new();
         readonly RadioButton dateUsa = new();
         readonly RadioButton dateAsia = new();
+        readonly CheckBox checkUpdatesOnStartup = new();
+        readonly CheckBox includePrereleaseUpdates = new();
 
         readonly Button ok = new();
         readonly Button cancel = new();
@@ -62,7 +64,11 @@ namespace PriorityManagerX
                 UseSharedDataLocation = settings.UseSharedDataLocation,
                 SharedConfigPath = settings.SharedConfigPath,
                 SharedLogsPath = settings.SharedLogsPath,
-                DateFormat = settings.DateFormat
+                DateFormat = settings.DateFormat,
+                CheckUpdatesOnStartup = settings.CheckUpdatesOnStartup,
+                IncludePrereleaseUpdates = settings.IncludePrereleaseUpdates,
+                UpdatePeriod = settings.UpdatePeriod,
+                LastUpdateCheckUtc = settings.LastUpdateCheckUtc
             };
 
             AutoScaleMode = AutoScaleMode.Dpi;
@@ -88,6 +94,7 @@ namespace PriorityManagerX
             tabs.TabPages.Add(NewTab(L10n.SettingsBehavior, BuildBehaviorPage(settings)));
             tabs.TabPages.Add(NewTab(L10n.SettingsIntegration, BuildStartupPage(settings)));
             tabs.TabPages.Add(NewTab(L10n.SettingsMultiUserGroup, BuildMultiUserPage(settings)));
+            tabs.TabPages.Add(NewTab(L10n.SettingsUpdates, BuildUpdatesPage(settings)));
             tabs.TabPages.Add(NewTab(L10n.SettingsInstallMenuHint, BuildIntegrationPage()));
 
             var buttonsPanel = BuildBottomButtons();
@@ -386,6 +393,32 @@ namespace PriorityManagerX
             return group;
         }
 
+        Control BuildUpdatesPage(AppSettings settings)
+        {
+            var group = NewGroup(L10n.SettingsUpdatesGroup);
+            group.Dock = DockStyle.Top;
+
+            var root = NewGrid(2);
+            root.Dock = DockStyle.Top;
+
+            checkUpdatesOnStartup.Text = L10n.SettingsCheckUpdatesOnStartup;
+            checkUpdatesOnStartup.AutoSize = true;
+            checkUpdatesOnStartup.Checked = settings.CheckUpdatesOnStartup;
+
+            includePrereleaseUpdates.Text = L10n.SettingsIncludePrerelease;
+            includePrereleaseUpdates.AutoSize = true;
+            includePrereleaseUpdates.Checked = settings.IncludePrereleaseUpdates;
+
+            var row = 0;
+            root.Controls.Add(checkUpdatesOnStartup, 0, row++);
+            root.SetColumnSpan(checkUpdatesOnStartup, 2);
+            root.Controls.Add(includePrereleaseUpdates, 0, row++);
+            root.SetColumnSpan(includePrereleaseUpdates, 2);
+
+            group.Controls.Add(root);
+            return group;
+        }
+
         FlowLayoutPanel BuildBottomButtons()
         {
             var panel = new FlowLayoutPanel
@@ -450,6 +483,9 @@ namespace PriorityManagerX
                 : dateAsia.Checked
                     ? DateDisplayFormat.Asia
                     : DateDisplayFormat.Europe;
+
+            Settings.CheckUpdatesOnStartup = checkUpdatesOnStartup.Checked;
+            Settings.IncludePrereleaseUpdates = includePrereleaseUpdates.Checked;
 
             Settings.AutoStartWithWindows = Settings.GuiStartupMode != StartupScopeMode.Disabled;
         }

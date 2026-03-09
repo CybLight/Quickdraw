@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Principal;
@@ -194,15 +195,24 @@ namespace PriorityManagerX
         static bool ConfigureCoreStartup(string exePath, CoreEngineStartupMode mode, out string error)
         {
             error = string.Empty;
+            var watchdogPath = ResolveWatchdogHostPath(exePath);
+            var watchdogCommand = $"\"{watchdogPath}\"";
             return mode switch
             {
                 CoreEngineStartupMode.Disabled => true,
                 CoreEngineStartupMode.WithGui => true,
-                CoreEngineStartupMode.CurrentUser => SetRunEntry(CoreRunValueName, $"\"{exePath}\" --engine-watchdog", out error),
-                CoreEngineStartupMode.AllUsers => CreateOrUpdateLogonTask(CoreStartupTaskName, $"\"{exePath}\" --engine-watchdog", false, false, out error),
-                CoreEngineStartupMode.ServiceLike => CreateOrUpdateBootTask(CoreStartupTaskName, $"\"{exePath}\" --engine-watchdog", out error),
+                CoreEngineStartupMode.CurrentUser => SetRunEntry(CoreRunValueName, watchdogCommand, out error),
+                CoreEngineStartupMode.AllUsers => CreateOrUpdateLogonTask(CoreStartupTaskName, watchdogCommand, false, false, out error),
+                CoreEngineStartupMode.ServiceLike => CreateOrUpdateBootTask(CoreStartupTaskName, watchdogCommand, out error),
                 _ => true
             };
+        }
+
+        static string ResolveWatchdogHostPath(string appPath)
+        {
+            var appDir = Path.GetDirectoryName(appPath) ?? AppContext.BaseDirectory;
+            var path = Path.Combine(appDir, "PMX.EngineWatchdog.exe");
+            return File.Exists(path) ? path : appPath;
         }
 
         static bool SetRunEntry(string valueName, string command, out string error)
@@ -291,13 +301,7 @@ namespace PriorityManagerX
             if (RunSchtasks(args, true, out error))
                 return true;
 
-            if (!string.IsNullOrWhiteSpace(error) && error.Contains("cannot find", StringComparison.OrdinalIgnoreCase))
-            {
-                error = string.Empty;
-                return true;
-            }
-
-            if (!string.IsNullOrWhiteSpace(error) && error.Contains("не удается найти", StringComparison.OrdinalIgnoreCase))
+            if (IsTaskNotFoundError(error))
             {
                 error = string.Empty;
                 return true;
@@ -312,7 +316,7 @@ namespace PriorityManagerX
             if (RunSchtasks(args, true, out error))
                 return true;
 
-            if (!string.IsNullOrWhiteSpace(error) && error.Contains("cannot find", StringComparison.OrdinalIgnoreCase))
+            if (IsTaskNotFoundError(error))
             {
                 error = string.Empty;
                 return true;
@@ -343,6 +347,9 @@ namespace PriorityManagerX
                     psi.CreateNoWindow = true;
                     psi.RedirectStandardError = true;
                     psi.RedirectStandardOutput = true;
+                    var oemCodePage = CultureInfo.CurrentCulture.TextInfo.OEMCodePage;
+                    psi.StandardOutputEncoding = Encoding.GetEncoding(oemCodePage);
+                    psi.StandardErrorEncoding = Encoding.GetEncoding(oemCodePage);
                 }
 
                 using var process = Process.Start(psi);
@@ -383,6 +390,17 @@ namespace PriorityManagerX
                 error = ex.Message;
                 return false;
             }
+        }
+
+        static bool IsTaskNotFoundError(string error)
+        {
+            if (string.IsNullOrWhiteSpace(error))
+                return false;
+
+            return error.Contains("cannot find", StringComparison.OrdinalIgnoreCase)
+                || error.Contains("не удается найти", StringComparison.OrdinalIgnoreCase)
+                || error.Contains("the system cannot find the file specified", StringComparison.OrdinalIgnoreCase)
+                || error.Contains("указанный файл не найден", StringComparison.OrdinalIgnoreCase);
         }
 
         public static bool InstallExplorerContextMenu(string appPath, AppLanguage language, out string error)

@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Principal;
+using System.Text;
 using System.Windows.Forms;
 
 namespace PriorityManagerX
@@ -14,6 +15,8 @@ namespace PriorityManagerX
         [STAThread]
         static void Main(string[] args)
         {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
             var settings = AppSettingsStore.Load();
             L10n.CurrentLanguage = L10n.ParseLanguage(settings.Language);
 

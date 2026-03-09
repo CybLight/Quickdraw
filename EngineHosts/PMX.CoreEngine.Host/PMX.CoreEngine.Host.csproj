@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <AssemblyName>PMX.CoreEngine</AssemblyName>
+    <RootNamespace>PriorityManagerX</RootNamespace>
+    <Company>CybLight</Company>
+    <Product>Priority Manager X</Product>
+    <AssemblyTitle>PMX Core Engine</AssemblyTitle>
+    <Description>PMX Core Engine background process</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\CoreEngineHost.cs" Link="CoreEngineHost.cs" />
+    <Compile Include="..\..\Localization.cs" Link="Localization.cs" />
+    <Compile Include="..\..\Rules.cs" Link="Rules.cs" />
+    <Compile Include="..\..\PriorityEngine.cs" Link="PriorityEngine.cs" />
+  </ItemGroup>
+</Project>

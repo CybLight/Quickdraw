@@ -41,6 +41,16 @@ namespace PriorityManagerX
         Asia
     }
 
+    public enum UpdateCheckPeriod
+    {
+        Never,
+        Hours12,
+        Day1,
+        Day2,
+        Week1,
+        Week2
+    }
+
     public sealed class AppSettings
     {
         public string Language { get; set; } = "";
@@ -58,6 +68,10 @@ namespace PriorityManagerX
         public string SharedConfigPath { get; set; } = "";
         public string SharedLogsPath { get; set; } = "";
         public DateDisplayFormat DateFormat { get; set; } = DateDisplayFormat.Europe;
+        public bool CheckUpdatesOnStartup { get; set; } = true;
+        public bool IncludePrereleaseUpdates { get; set; } = false;
+        public UpdateCheckPeriod UpdatePeriod { get; set; } = UpdateCheckPeriod.Day1;
+        public DateTime LastUpdateCheckUtc { get; set; } = DateTime.MinValue;
     }
 
     public static class AppSettingsStore
@@ -429,6 +443,20 @@ namespace PriorityManagerX
             => Text($"Не удалось обновить автозапуск. {error}", $"Не вдалося оновити автозапуск. {error}", $"Failed to update autostart. {error}");
         public static string MsgRunAsAdminFailed(string error)
             => Text($"Не удалось обновить запуск от администратора. {error}", $"Не вдалося оновити запуск від адміністратора. {error}", $"Failed to update run-as-admin setting. {error}");
+        public static string MsgUpdateCheckFailed(string error)
+            => Text($"Не удалось проверить обновления. {error}", $"Не вдалося перевірити оновлення. {error}", $"Failed to check updates. {error}");
+        public static string MsgUpdateAvailableAsk(string currentVersion, string latestVersion)
+            => Text(
+                $"Доступна новая версия PMX: {latestVersion} (текущая: {currentVersion}).\nСкачать и установить сейчас?",
+                $"Доступна нова версія PMX: {latestVersion} (поточна: {currentVersion}).\nЗавантажити й встановити зараз?",
+                $"A new PMX version is available: {latestVersion} (current: {currentVersion}).\nDownload and install now?");
+        public static string MsgUpdateInstallerNotFound
+            => Text("В релизе не найден файл установщика (.exe).", "У релізі не знайдено файл інсталятора (.exe).", "No installer file (.exe) was found in the release.");
+        public static string MsgUpdateDownloadStarted(string fileName)
+            => Text($"Загрузка обновления: {fileName}", $"Завантаження оновлення: {fileName}", $"Downloading update: {fileName}");
+        public static string MsgUpdateDownloadFailed(string error)
+            => Text($"Не удалось скачать обновление. {error}", $"Не вдалося завантажити оновлення. {error}", $"Failed to download update. {error}");
+        public static string MsgNoUpdatesFound => Text("Новых обновлений не найдено.", "Нових оновлень не знайдено.", "No updates found.");
         public static string MsgApplyDone => Text("Приоритет применён к запущенным процессам.", "Пріоритет застосовано до запущених процесів.", "Priority applied to running processes.");
         public static string MsgNoProcessSelected => Text("Сначала выберите процесс в таблице.", "Спочатку оберіть процес у таблиці.", "Select a process in the table first.");
         public static string MsgProcessActionFailed(string error)
@@ -495,6 +523,21 @@ namespace PriorityManagerX
         public static string SettingsDateEurope => Text("Европа (дд-мм-гггг)", "Європа (дд-мм-рррр)", "Europe (dd-mm-yyyy)");
         public static string SettingsDateUsa => Text("США (мм-дд-гггг)", "США (мм-дд-рррр)", "USA (mm-dd-yyyy)");
         public static string SettingsDateAsia => Text("Азия (гггг-мм-дд)", "Азія (рррр-мм-дд)", "Asia (yyyy-mm-dd)");
+        public static string SettingsUpdates => Text("Обновления", "Оновлення", "Updates");
+        public static string SettingsUpdatesGroup => Text("Обновления через GitHub Releases", "Оновлення через GitHub Releases", "Updates via GitHub Releases");
+        public static string SettingsCheckUpdatesOnStartup => Text("Автоматически проверять обновления при запуске", "Автоматично перевіряти оновлення під час запуску", "Automatically check for updates at startup");
+        public static string SettingsIncludePrerelease => Text("Включать pre-release версии", "Включати pre-release версії", "Include pre-release versions");
+        public static string UpdatesButton => Text("Обновления", "Оновлення", "Updates");
+        public static string UpdatesCheckNow => Text("Проверить сейчас", "Перевірити зараз", "Check now");
+        public static string UpdatesPeriod => Text("Период проверки", "Період перевірки", "Check period");
+        public static string UpdatesIncludeBeta => Text("Включать беты", "Включати бети", "Include betas");
+        public static string UpdatesAuto => Text("Автообновления", "Автооновлення", "Auto updates");
+        public static string UpdatesPeriodNever => Text("Никогда", "Ніколи", "Never");
+        public static string UpdatesPeriod12h => Text("12 часов", "12 годин", "12 hours");
+        public static string UpdatesPeriod1d => Text("1 день", "1 день", "1 day");
+        public static string UpdatesPeriod2d => Text("2 дня", "2 дні", "2 days");
+        public static string UpdatesPeriod1w => Text("1 неделя", "1 тиждень", "1 week");
+        public static string UpdatesPeriod2w => Text("2 недели", "2 тижні", "2 weeks");
         public static string SettingsOk => Text("Сохранить", "Зберегти", "Save");
         public static string SettingsCancel => Text("Отмена", "Скасувати", "Cancel");
     }

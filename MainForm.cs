@@ -9,6 +9,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace PriorityManagerX
@@ -23,7 +24,9 @@ namespace PriorityManagerX
         readonly Panel topPanel = new();
         readonly Button settingsButton = new();
         readonly Button helpButton = new();
+        readonly Button updatesButton = new();
         readonly ContextMenuStrip helpMenu = new();
+        readonly ContextMenuStrip updatesMenu = new();
 
         readonly TabControl tabs = new();
         readonly TabPage processesTab = new();
@@ -100,6 +103,7 @@ namespace PriorityManagerX
         readonly ContextMenuStrip ruleCellEditorMenu = new();
 
         readonly ContextMenuStrip processMenu = new();
+        bool updateCheckInProgress;
 
         public MainForm(AppSettings initialSettings)
         {
@@ -130,6 +134,7 @@ namespace PriorityManagerX
             tabs.SelectedIndexChanged += (_, _) => UpdateSearchLayout();
 
             processTimer.Tick += ProcessTimer_Tick;
+            Shown += MainForm_Shown;
 
             Controls.Add(tabs);
             Controls.Add(topPanel);
@@ -143,6 +148,11 @@ namespace PriorityManagerX
 
             if (settings.AutoApplyOnStartup)
                 ApplyAllRulesCore();
+        }
+
+        async void MainForm_Shown(object? sender, EventArgs e)
+        {
+            await CheckForUpdatesAsync(false, false);
         }
 
         void BuildTopPanel()
@@ -173,6 +183,15 @@ namespace PriorityManagerX
             helpButton.ImageAlign = ContentAlignment.MiddleLeft;
             helpButton.TextImageRelation = TextImageRelation.ImageBeforeText;
             helpButton.Click += HelpButton_Click;
+            updatesButton.Width = 140;
+            updatesButton.Height = 30;
+            updatesButton.Top = 7;
+            updatesButton.Dock = DockStyle.Left;
+            updatesButton.Font = new System.Drawing.Font("Segoe UI", 10F);
+            updatesButton.Image = SystemIcons.Information.ToBitmap();
+            updatesButton.ImageAlign = ContentAlignment.MiddleLeft;
+            updatesButton.TextImageRelation = TextImageRelation.ImageBeforeText;
+            updatesButton.Click += UpdatesButton_Click;
 
             helpMenu.Items.Add(new ToolStripMenuItem(string.Empty, null, (_, _) => ShowInstruction()));
             helpMenu.Items.Add(new ToolStripMenuItem(string.Empty, null, (_, _) => OpenUrl("https://cyblight.org/")));
@@ -181,7 +200,89 @@ namespace PriorityManagerX
 
             topPanel.Controls.Add(donateQuickButton);
             topPanel.Controls.Add(helpButton);
+            topPanel.Controls.Add(updatesButton);
             topPanel.Controls.Add(settingsButton);
+
+            BuildUpdatesMenu();
+        }
+
+        void BuildUpdatesMenu()
+        {
+            updatesMenu.Items.Clear();
+
+            updatesMenu.Items.Add(new ToolStripMenuItem(L10n.UpdatesCheckNow, null, async (_, _) => await CheckForUpdatesAsync(true, true)));
+
+            var periodItem = new ToolStripMenuItem(L10n.UpdatesPeriod);
+            periodItem.DropDownItems.Add(CreatePeriodMenuItem(UpdateCheckPeriod.Never, L10n.UpdatesPeriodNever));
+            periodItem.DropDownItems.Add(CreatePeriodMenuItem(UpdateCheckPeriod.Hours12, L10n.UpdatesPeriod12h));
+            periodItem.DropDownItems.Add(CreatePeriodMenuItem(UpdateCheckPeriod.Day1, L10n.UpdatesPeriod1d));
+            periodItem.DropDownItems.Add(CreatePeriodMenuItem(UpdateCheckPeriod.Day2, L10n.UpdatesPeriod2d));
+            periodItem.DropDownItems.Add(CreatePeriodMenuItem(UpdateCheckPeriod.Week1, L10n.UpdatesPeriod1w));
+            periodItem.DropDownItems.Add(CreatePeriodMenuItem(UpdateCheckPeriod.Week2, L10n.UpdatesPeriod2w));
+            updatesMenu.Items.Add(periodItem);
+
+            var betaItem = new ToolStripMenuItem(L10n.UpdatesIncludeBeta)
+            {
+                CheckOnClick = true,
+                Checked = settings.IncludePrereleaseUpdates
+            };
+            betaItem.CheckedChanged += (_, _) =>
+            {
+                settings.IncludePrereleaseUpdates = betaItem.Checked;
+                AppSettingsStore.Save(settings);
+            };
+            updatesMenu.Items.Add(betaItem);
+
+            var autoItem = new ToolStripMenuItem(L10n.UpdatesAuto)
+            {
+                CheckOnClick = true,
+                Checked = settings.CheckUpdatesOnStartup
+            };
+            autoItem.CheckedChanged += (_, _) =>
+            {
+                settings.CheckUpdatesOnStartup = autoItem.Checked;
+                AppSettingsStore.Save(settings);
+            };
+            updatesMenu.Items.Add(autoItem);
+
+            UpdatePeriodMenuChecks();
+        }
+
+        ToolStripMenuItem CreatePeriodMenuItem(UpdateCheckPeriod period, string text)
+        {
+            var item = new ToolStripMenuItem(text)
+            {
+                Tag = period
+            };
+
+            item.Click += (_, _) =>
+            {
+                settings.UpdatePeriod = period;
+                AppSettingsStore.Save(settings);
+                UpdatePeriodMenuChecks();
+            };
+
+            return item;
+        }
+
+        void UpdatePeriodMenuChecks()
+        {
+            foreach (ToolStripItem menuItem in updatesMenu.Items)
+            {
+                if (menuItem is not ToolStripMenuItem parent || parent.DropDownItems.Count == 0)
+                    continue;
+
+                foreach (ToolStripItem child in parent.DropDownItems)
+                {
+                    if (child is ToolStripMenuItem periodItem && periodItem.Tag is UpdateCheckPeriod period)
+                        periodItem.Checked = period == settings.UpdatePeriod;
+                }
+            }
+        }
+
+        void UpdatesButton_Click(object? sender, EventArgs e)
+        {
+            updatesMenu.Show(updatesButton, new Point(0, updatesButton.Height));
         }
 
         void BuildTabs()
@@ -691,6 +792,125 @@ namespace PriorityManagerX
             RefreshProcessGrid();
             RefreshRulesGrid(SelectedRuleIndex());
             MessageBox.Show(L10n.MsgSettingsSaved, L10n.AppTitle);
+        }
+
+        async Task CheckForUpdatesAsync(bool force, bool interactive)
+        {
+            if (updateCheckInProgress)
+                return;
+
+            if (!force)
+            {
+                if (!settings.CheckUpdatesOnStartup)
+                    return;
+
+                var period = GetUpdatePeriodInterval(settings.UpdatePeriod);
+                if (period == null)
+                    return;
+
+                var nowUtc = DateTime.UtcNow;
+                if (settings.LastUpdateCheckUtc != DateTime.MinValue
+                    && (nowUtc - settings.LastUpdateCheckUtc) < period.Value)
+                {
+                    return;
+                }
+            }
+
+            updateCheckInProgress = true;
+            try
+            {
+                var currentVersion = GetCurrentAppVersion();
+                var checkResult = await GitHubUpdater.CheckForUpdatesAsync(settings, currentVersion);
+                settings.LastUpdateCheckUtc = DateTime.UtcNow;
+                AppSettingsStore.Save(settings);
+
+                if (!checkResult.IsSuccess)
+                {
+                    if (interactive)
+                        MessageBox.Show(L10n.MsgUpdateCheckFailed(checkResult.Error), L10n.AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (!checkResult.IsUpdateAvailable || checkResult.Release == null || checkResult.LatestVersion == null)
+                {
+                    if (interactive)
+                        MessageBox.Show(L10n.MsgNoUpdatesFound, L10n.AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                var decision = MessageBox.Show(
+                    L10n.MsgUpdateAvailableAsk(checkResult.CurrentVersion.ToString(), checkResult.LatestVersion.ToString()),
+                    L10n.AppTitle,
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Information);
+
+                if (decision != DialogResult.Yes)
+                    return;
+
+                var installerAsset = checkResult.Release.PreferredInstallerAsset;
+                if (installerAsset == null || string.IsNullOrWhiteSpace(installerAsset.DownloadUrl))
+                {
+                    MessageBox.Show(L10n.MsgUpdateInstallerNotFound, L10n.AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                await DownloadAndRunInstallerAsync(installerAsset);
+            }
+            finally
+            {
+                updateCheckInProgress = false;
+            }
+        }
+
+        static TimeSpan? GetUpdatePeriodInterval(UpdateCheckPeriod period)
+        {
+            return period switch
+            {
+                UpdateCheckPeriod.Never => null,
+                UpdateCheckPeriod.Hours12 => TimeSpan.FromHours(12),
+                UpdateCheckPeriod.Day1 => TimeSpan.FromDays(1),
+                UpdateCheckPeriod.Day2 => TimeSpan.FromDays(2),
+                UpdateCheckPeriod.Week1 => TimeSpan.FromDays(7),
+                UpdateCheckPeriod.Week2 => TimeSpan.FromDays(14),
+                _ => TimeSpan.FromDays(1)
+            };
+        }
+
+        async Task DownloadAndRunInstallerAsync(UpdateAssetInfo installerAsset)
+        {
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                var tempDir = Path.Combine(Path.GetTempPath(), "PriorityManagerX", "updates");
+                var targetPath = Path.Combine(tempDir, installerAsset.Name);
+
+                MessageBox.Show(L10n.MsgUpdateDownloadStarted(installerAsset.Name), L10n.AppTitle);
+                await GitHubUpdater.DownloadAssetAsync(installerAsset.DownloadUrl, targetPath);
+
+                Process.Start(new ProcessStartInfo(targetPath)
+                {
+                    UseShellExecute = true
+                });
+
+                Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(L10n.MsgUpdateDownloadFailed(ex.Message), L10n.AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+        }
+
+        static Version GetCurrentAppVersion()
+        {
+            var assemblyVersion = typeof(MainForm).Assembly.GetName().Version;
+            if (assemblyVersion != null)
+                return assemblyVersion;
+
+            return new Version(0, 0, 0, 0);
         }
 
         void AddRule_Click(object? sender, EventArgs e)
@@ -2852,7 +3072,9 @@ namespace PriorityManagerX
             settingsButton.Text = $"{L10n.SettingsButton} {L10n.Settings}";
             settingsButton.AccessibleName = L10n.Settings;
             helpButton.Text = L10n.HelpMenu;
+            updatesButton.Text = L10n.UpdatesButton;
             donateQuickButton.Text = L10n.DonateQuick;
+            BuildUpdatesMenu();
 
             if (helpMenu.Items.Count >= 4)
             {

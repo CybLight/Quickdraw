@@ -23,6 +23,10 @@
 AppId={{2A5C15BC-0228-4BA4-BCFB-BD8E7B55A891}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersion}.0
+VersionInfoProductVersion={#MyAppVersion}
+VersionInfoProductTextVersion={#MyAppVersion}
+VersionInfoDescription=Priority Manager X Setup
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
@@ -49,6 +53,8 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 UninstallDisplayIcon={app}\{#MyAppExeName}
 ShowLanguageDialog=auto
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
@@ -120,7 +126,16 @@ Filename: "{cmd}"; Parameters: "/C powershell.exe -NoProfile -ExecutionPolicy By
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec
 
 [UninstallRun]
+Filename: "{cmd}"; Parameters: "/C taskkill /F /IM PriorityManagerX.exe"; RunOnceId: "PMXKillProcessBeforeUninstall"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C taskkill /F /IM PMX.CoreEngine.exe"; RunOnceId: "PMXKillCoreBeforeUninstall"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C taskkill /F /IM PMX.EngineWatchdog.exe"; RunOnceId: "PMXKillWatchdogBeforeUninstall"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C schtasks /Delete /F /TN ""PriorityManagerX Core Engine"""; RunOnceId: "PMXDeleteTaskCore"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C schtasks /Delete /F /TN ""PriorityManagerX GUI"""; RunOnceId: "PMXDeleteTaskGui"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C schtasks /Delete /F /TN ""PriorityManagerX AutoApply"""; RunOnceId: "PMXDeleteTaskAutoApply"; Flags: runhidden waituntilterminated
 Filename: "{cmd}"; Parameters: "/C powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""{app}\uninstall-sparse-package.ps1"" -StoreScope LocalMachine"; RunOnceId: "PMXSparseUninstall"; Flags: runhidden waituntilterminated; Check: FileExists(ExpandConstant('{app}\uninstall-sparse-package.ps1'))
+Filename: "{cmd}"; Parameters: "/C taskkill /F /IM PriorityManagerX.exe"; RunOnceId: "PMXKillProcessAfterSparseUninstall"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C taskkill /F /IM PMX.CoreEngine.exe"; RunOnceId: "PMXKillCoreAfterSparseUninstall"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C taskkill /F /IM PMX.EngineWatchdog.exe"; RunOnceId: "PMXKillWatchdogAfterSparseUninstall"; Flags: runhidden waituntilterminated
 Filename: "{cmd}"; Parameters: "/C reg delete ""HKLM\Software\Classes\exefile\shell\PriorityManagerX"" /f"; Flags: runhidden waituntilterminated
 Filename: "{cmd}"; Parameters: "/C reg delete ""HKCU\Software\Classes\exefile\shell\PriorityManagerX"" /f"; Flags: runhidden waituntilterminated
 Filename: "{cmd}"; Parameters: "/C reg delete ""HKLM\Software\Classes\*\shell\PriorityManagerX"" /f"; Flags: runhidden waituntilterminated
@@ -137,6 +152,9 @@ Filename: "{cmd}"; Parameters: "/C reg delete ""HKLM\Software\Classes\CLSID\{{4F
 Filename: "{cmd}"; Parameters: "/C reg delete ""HKLM\Software\Classes\CLSID\{{B1B7D9D0-6A69-4A5D-9A89-9A8F59A17C22}}"" /f"; Flags: runhidden waituntilterminated
 Filename: "{cmd}"; Parameters: "/C reg delete ""HKCU\Software\Classes\CLSID\{{4F6D1E31-87BA-4E31-9D2D-B9CA22A6E6D2}}"" /f"; Flags: runhidden waituntilterminated
 Filename: "{cmd}"; Parameters: "/C reg delete ""HKCU\Software\Classes\CLSID\{{B1B7D9D0-6A69-4A5D-9A89-9A8F59A17C22}}"" /f"; Flags: runhidden waituntilterminated
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}"
 
 [Code]
 const

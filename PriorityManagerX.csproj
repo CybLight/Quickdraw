@@ -4,6 +4,9 @@
     <Compile Remove="ShellExtension\**\*.cs" />
     <EmbeddedResource Remove="ShellExtension\**\*" />
     <None Remove="ShellExtension\**\*" />
+    <Compile Remove="EngineHosts\**\*.cs" />
+    <EmbeddedResource Remove="EngineHosts\**\*" />
+    <None Remove="EngineHosts\**\*" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -39,5 +42,41 @@
     </ItemGroup>
 
     <Copy SourceFiles="@(ShellExtensionArtifacts)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('%(ShellExtensionArtifacts.Identity)')" />
+  </Target>
+
+  <Target Name="BuildEngineHosts" AfterTargets="Build" Condition="'$(IsEngineHostBuild)' != 'true'">
+    <MSBuild Projects="EngineHosts\PMX.CoreEngine.Host\PMX.CoreEngine.Host.csproj" Targets="Restore;Build" Properties="Configuration=$(Configuration)" />
+    <MSBuild Projects="EngineHosts\PMX.EngineWatchdog.Host\PMX.EngineWatchdog.Host.csproj" Targets="Restore;Build" Properties="Configuration=$(Configuration)" />
+
+    <ItemGroup>
+      <EngineHostArtifacts Include="EngineHosts\PMX.CoreEngine.Host\bin\$(Configuration)\net8.0-windows\PMX.CoreEngine.exe" />
+      <EngineHostArtifacts Include="EngineHosts\PMX.CoreEngine.Host\bin\$(Configuration)\net8.0-windows\PMX.CoreEngine.dll" />
+      <EngineHostArtifacts Include="EngineHosts\PMX.CoreEngine.Host\bin\$(Configuration)\net8.0-windows\PMX.CoreEngine.deps.json" />
+      <EngineHostArtifacts Include="EngineHosts\PMX.CoreEngine.Host\bin\$(Configuration)\net8.0-windows\PMX.CoreEngine.runtimeconfig.json" />
+      <EngineHostArtifacts Include="EngineHosts\PMX.EngineWatchdog.Host\bin\$(Configuration)\net8.0-windows\PMX.EngineWatchdog.exe" />
+      <EngineHostArtifacts Include="EngineHosts\PMX.EngineWatchdog.Host\bin\$(Configuration)\net8.0-windows\PMX.EngineWatchdog.dll" />
+      <EngineHostArtifacts Include="EngineHosts\PMX.EngineWatchdog.Host\bin\$(Configuration)\net8.0-windows\PMX.EngineWatchdog.deps.json" />
+      <EngineHostArtifacts Include="EngineHosts\PMX.EngineWatchdog.Host\bin\$(Configuration)\net8.0-windows\PMX.EngineWatchdog.runtimeconfig.json" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(EngineHostArtifacts)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('%(EngineHostArtifacts.Identity)')" />
+  </Target>
+
+  <Target Name="PublishEngineHosts" AfterTargets="Publish" Condition="'$(IsEngineHostBuild)' != 'true' and '$(PublishDir)' != ''">
+    <MSBuild Projects="EngineHosts\PMX.CoreEngine.Host\PMX.CoreEngine.Host.csproj" Targets="Restore;Build" Properties="Configuration=$(Configuration)" />
+    <MSBuild Projects="EngineHosts\PMX.EngineWatchdog.Host\PMX.EngineWatchdog.Host.csproj" Targets="Restore;Build" Properties="Configuration=$(Configuration)" />
+
+    <ItemGroup>
+      <PublishedEngineHostArtifacts Include="EngineHosts\PMX.CoreEngine.Host\bin\$(Configuration)\net8.0-windows\PMX.CoreEngine.exe" />
+      <PublishedEngineHostArtifacts Include="EngineHosts\PMX.CoreEngine.Host\bin\$(Configuration)\net8.0-windows\PMX.CoreEngine.dll" />
+      <PublishedEngineHostArtifacts Include="EngineHosts\PMX.CoreEngine.Host\bin\$(Configuration)\net8.0-windows\PMX.CoreEngine.deps.json" />
+      <PublishedEngineHostArtifacts Include="EngineHosts\PMX.CoreEngine.Host\bin\$(Configuration)\net8.0-windows\PMX.CoreEngine.runtimeconfig.json" />
+      <PublishedEngineHostArtifacts Include="EngineHosts\PMX.EngineWatchdog.Host\bin\$(Configuration)\net8.0-windows\PMX.EngineWatchdog.exe" />
+      <PublishedEngineHostArtifacts Include="EngineHosts\PMX.EngineWatchdog.Host\bin\$(Configuration)\net8.0-windows\PMX.EngineWatchdog.dll" />
+      <PublishedEngineHostArtifacts Include="EngineHosts\PMX.EngineWatchdog.Host\bin\$(Configuration)\net8.0-windows\PMX.EngineWatchdog.deps.json" />
+      <PublishedEngineHostArtifacts Include="EngineHosts\PMX.EngineWatchdog.Host\bin\$(Configuration)\net8.0-windows\PMX.EngineWatchdog.runtimeconfig.json" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(PublishedEngineHostArtifacts)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" Condition="Exists('%(PublishedEngineHostArtifacts.Identity)')" />
   </Target>
 </Project>
