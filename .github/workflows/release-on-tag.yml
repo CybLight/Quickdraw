@@ -1,0 +1,57 @@
+name: Build And Release Installer
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: |
+          choco install innosetup --no-progress -y
+
+      - name: Build x64/x86 installers
+        shell: powershell
+        env:
+          SPARSE_PFX_BASE64: ${{ secrets.SPARSE_PFX_BASE64 }}
+          SPARSE_PFX_PASSWORD: ${{ secrets.SPARSE_PFX_PASSWORD }}
+        run: |
+          if (-not [string]::IsNullOrWhiteSpace($env:SPARSE_PFX_BASE64) -and -not [string]::IsNullOrWhiteSpace($env:SPARSE_PFX_PASSWORD)) {
+            $pfxPath = Join-Path $env:RUNNER_TEMP "pmx-release.pfx"
+            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:SPARSE_PFX_BASE64))
+            ./installer/build-installer.ps1 -Runtimes win-x64,win-x86 -BuildSparsePackage:$true -SparsePfxPath $pfxPath -SparsePfxPassword $env:SPARSE_PFX_PASSWORD
+          } else {
+            ./installer/build-installer.ps1 -Runtimes win-x64,win-x86 -BuildSparsePackage:$false
+          }
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmx-installers
+          path: installer/output/*.exe
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            installer/output/*.exe
+          generate_release_notes: true
+          fail_on_unmatched_files: true
